@@ -1,0 +1,281 @@
+
+<h2 class="sr-only">Insolvency watchdog deep-dive: MVP, customers, and acquisition strategy</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.w{padding:1.5rem;display:flex;flex-direction:column;gap:0;}
+.tabs{display:flex;gap:0;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:1.5rem;overflow-x:auto;}
+.tab{font-size:13px;padding:8px 14px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;}
+.tab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary);font-weight:500;}
+.panel{display:none;flex-direction:column;gap:14px;}
+.panel.on{display:flex;}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.1rem 1.25rem;}
+.card.hi{border:1.5px solid var(--color-border-info);}
+.ct{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px;}
+.cb{font-size:13px;color:var(--color-text-secondary);line-height:1.6;}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.m{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;}
+.mv{font-size:20px;font-weight:500;color:var(--color-text-primary);}
+.ml{font-size:11px;color:var(--color-text-secondary);margin-top:2px;line-height:1.4;}
+.row{display:flex;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary);align-items:flex-start;}
+.row:last-child{border-bottom:none;}
+.rl{font-size:12px;color:var(--color-text-tertiary);width:110px;flex-shrink:0;padding-top:1px;}
+.rv{font-size:13px;color:var(--color-text-secondary);line-height:1.5;flex:1;}
+.rv strong{color:var(--color-text-primary);font-weight:500;}
+.badge{font-size:10px;padding:2px 7px;border-radius:20px;display:inline-block;white-space:nowrap;}
+.bi{background:var(--color-background-info);color:var(--color-text-info);}
+.bs{background:var(--color-background-success);color:var(--color-text-success);}
+.bw{background:var(--color-background-warning);color:var(--color-text-warning);}
+.bd{background:var(--color-background-danger);color:var(--color-text-danger);}
+.bn{background:var(--color-background-secondary);color:var(--color-text-secondary);}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.scard{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem;}
+.scard.best{border:1.5px solid var(--color-border-success);}
+.stitle{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px;}
+.sdesc{font-size:12px;color:var(--color-text-secondary);line-height:1.5;}
+.stag{font-size:11px;margin-top:6px;}
+.step{display:flex;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary);align-items:flex-start;}
+.step:last-child{border-bottom:none;}
+.snum{width:26px;height:26px;border-radius:50%;background:var(--color-background-secondary);color:var(--color-text-secondary);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sbody{flex:1;}
+.stit{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:3px;}
+.sdsc{font-size:12px;color:var(--color-text-secondary);line-height:1.6;}
+.stgt{font-size:11px;color:var(--color-text-info);font-weight:500;margin-top:4px;}
+.ibox{background:var(--color-background-info);border-left:3px solid var(--color-border-info);border-radius:0;padding:10px 14px;font-size:13px;color:var(--color-text-info);line-height:1.6;}
+.wbox{background:var(--color-background-warning);border-left:3px solid var(--color-border-warning);border-radius:0;padding:10px 14px;font-size:13px;color:var(--color-text-warning);line-height:1.6;}
+.sbox{background:var(--color-background-success);border-left:3px solid var(--color-border-success);border-radius:0;padding:10px 14px;font-size:13px;color:var(--color-text-success);line-height:1.6;}
+.feat{display:flex;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary);align-items:flex-start;}
+.feat:last-child{border-bottom:none;}
+.fdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.fmust{background:#1D9E75;}
+.fskip{background:#888780;}
+.ftit{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px;}
+.fdsc{font-size:12px;color:var(--color-text-secondary);line-height:1.5;}
+.btn{font-size:12px;color:var(--color-text-info);border:0.5px solid var(--color-border-info);border-radius:var(--border-radius-md);padding:7px 12px;background:transparent;cursor:pointer;width:100%;text-align:left;margin-top:4px;}
+.btn:hover{background:var(--color-background-info);}
+.sl{font-size:11px;font-weight:500;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+</style>
+
+<div class="w">
+<div class="tabs">
+  <button class="tab on" onclick="show('reality',this)">Market reality</button>
+  <button class="tab" onclick="show('mvp',this)">Exact MVP</button>
+  <button class="tab" onclick="show('customers',this)">Your customers</button>
+  <button class="tab" onclick="show('50',this)">First 50 plan</button>
+  <button class="tab" onclick="show('edge',this)">Your edge</button>
+</div>
+
+<div class="panel on" id="panel-reality">
+  <div class="metrics">
+    <div class="m"><div class="mv">23,900</div><div class="ml">German company insolvencies in 2025 — decade high</div></div>
+    <div class="m"><div class="mv">+23%</div><div class="ml">Year-on-year rise in 2024; trend still rising in 2026</div></div>
+    <div class="m"><div class="mv">€57B</div><div class="ml">Creditor losses from insolvencies in 2025</div></div>
+    <div class="m"><div class="mv">1.6M</div><div class="ml">Registered freelancers in Germany — your core market</div></div>
+  </div>
+  <div class="card hi">
+    <div class="ct">Why right now is the best possible moment</div>
+    <div class="cb">Germany is in a decade-high insolvency wave. 81.6% of all insolvencies hit micro-enterprises with under 10 employees — exactly the clients freelancers work with. The average creditor loss per case is over €2 million. Freelancers and small suppliers are the most exposed and the least protected. Every one of those 23,900 insolvencies left a trail of unpaid invoices — and none of those creditors had any warning. That pain is real, current, and growing.</div>
+  </div>
+  <div class="card" style="padding:.75rem 1.25rem;">
+    <div class="row"><div class="rl">Target market</div><div class="rv"><strong>1.6 million freelancers in Germany.</strong> IT/SAP alone: ~26,000 registered SAP consultants in Germany. Daily rates €700–€1,200/day. One missed payment = months of lost income.</div></div>
+    <div class="row"><div class="rl">Your location</div><div class="rv"><strong>Walldorf is the centre of the SAP ecosystem.</strong> You are sitting in the single highest-concentration location for SAP freelancers in Europe. That's your warm network — people you work alongside every day who freelance on the side or know people who do.</div></div>
+    <div class="row"><div class="rl">Your advantage</div><div class="rv"><strong>You understand enterprise procurement.</strong> You know how SAP projects work, who gets paid, what a typical invoice looks like, and what "client goes under" means in practice. That credibility is invisible to a generic founder — visible to your first customers.</div></div>
+    <div class="row"><div class="rl">The gap</div><div class="rv">Free tools exist (manually checking handelsregister.de) but they require knowing the exact spelling, navigating 150 fragmented court databases, and doing it yourself every week. Nobody does it. That's your product.</div></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-mvp">
+  <div class="sbox">Build the smallest thing that delivers the core promise: "know before your client can't pay you." Everything else is a distraction until you have 50 paying users.</div>
+
+  <div class="sl">Must build — no exceptions</div>
+  <div class="card" style="padding:.75rem 1.25rem;">
+    <div class="feat">
+      <div class="fdot fmust"></div>
+      <div>
+        <div class="ftit">Company search + add to watchlist</div>
+        <div class="fdsc">User types company name → searches handelsregister.ai API → sees results (name, city, legal form) → clicks to confirm → saved. Free plan: 3 companies. Paid: 25. This is the entire onboarding flow — it must feel instant and satisfying.</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="fdot fmust"></div>
+      <div>
+        <div class="ftit">Daily insolvency check at 7am</div>
+        <div class="fdsc">Vercel cron job calls handelsregister.ai for every company on every user's watchlist. Checks the <code style="font-size:11px;background:var(--color-background-secondary);padding:1px 4px;border-radius:3px;">insolvency_publications</code> endpoint. If non-empty → creates an alert row → sends email immediately. This is the product's entire value in one automated step.</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="fdot fmust"></div>
+      <div>
+        <div class="ftit">Alert email — urgent, clear, actionable</div>
+        <div class="fdsc">Subject: "Insolvenz-Warnung: [Firma GmbH]". Body: company name, filing date, insolvency court name, case number, one-line plain-German summary, link to dashboard. Must land in inbox — not spam. Test with 10 real email addresses before launch.</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="fdot fmust"></div>
+      <div>
+        <div class="ftit">Status dashboard</div>
+        <div class="fdsc">One page. List of watched companies. Each row: company name, city, status dot (green/amber/red), last checked date. That's it. No charts, no graphs, no complexity. If status is red → show the filing details inline.</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="fdot fmust"></div>
+      <div>
+        <div class="ftit">Stripe subscription — one plan only</div>
+        <div class="fdsc">12 €/month. One plan. No annual vs monthly decision yet. Stripe Checkout handles everything — EU VAT, SEPA, failed payment retries. The upgrade prompt appears when a free user tries to add their 4th company.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sl">Do not build yet</div>
+  <div class="card" style="padding:.75rem 1.25rem;">
+    <div class="feat">
+      <div class="fdot fskip"></div>
+      <div>
+        <div class="ftit">Director change alerts</div>
+        <div class="fdsc">Great feature — add it in v1.5 after your first 50 customers confirm they want it. Don't assume.</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="fdot fskip"></div>
+      <div>
+        <div class="ftit">Risk scoring / credit rating</div>
+        <div class="fdsc">Your moat in v2. Requires combining multiple data sources. Too complex for MVP — ship alerts first.</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="fdot fskip"></div>
+      <div>
+        <div class="ftit">Team accounts / CSV bulk import</div>
+        <div class="fdsc">This is your 29 €/month tier. Accountants and agencies need it. Build it at 100 paying users.</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="fdot fskip"></div>
+      <div>
+        <div class="ftit">Mobile app</div>
+        <div class="fdsc">Email alerts work on every phone already. A native app adds nothing until you're at 500+ users.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ibox"><strong>The test for every feature you're tempted to add:</strong> does it make the core alert more reliable, or faster, or clearer? If not — it goes in the backlog.</div>
+  <button class="btn" onclick="sendPrompt('Write the exact Claude Code prompt I should use to build the company search and watchlist feature for my insolvency watchdog app. I am using Next.js, Supabase, and the handelsregister.ai API.')">Get the Claude Code prompt for company search ↗</button>
+</div>
+
+<div class="panel" id="panel-customers">
+  <div class="sl">Three customer segments — ranked by ease of conversion</div>
+  <div class="seg">
+    <div class="scard best">
+      <div class="stitle">SAP freelancers — start here</div>
+      <div class="sdesc">You know this world. SAP freelancers bill €700–€1,200/day. One client going insolvent mid-project means weeks of unpaid work. They are tech-comfortable, used to paying for tools, and concentrated in your neighbourhood. 12 €/month is less than 10 minutes of their billing rate.</div>
+      <div class="stag"><span class="badge bs">Easiest to reach</span> <span class="badge bs">Highest willingness to pay</span></div>
+    </div>
+    <div class="scard">
+      <div class="stitle">IT / cloud consultants</div>
+      <div class="sdesc">Same profile as SAP freelancers but broader. Freelancers in AWS, Azure, DevOps, cybersecurity — all clustered in the Rhine-Neckar region (Mannheim, Heidelberg, Frankfurt). Reachable via the same LinkedIn/XING search.</div>
+      <div class="stag"><span class="badge bi">Easy to reach</span> <span class="badge bi">Strong ROI story</span></div>
+    </div>
+    <div class="scard">
+      <div class="stitle">Creative + marketing freelancers</div>
+      <div class="sdesc">Designers, copywriters, agencies. Bigger in Berlin and Hamburg. Also hit hard by client insolvency — smaller invoices but more of them. Lower daily rate means 12 €/month is proportionally more, so the ROI story needs to be sharper.</div>
+      <div class="stag"><span class="badge bn">Medium effort</span> <span class="badge bn">Higher churn risk</span></div>
+    </div>
+    <div class="scard">
+      <div class="stitle">Steuerberater as channel</div>
+      <div class="sdesc">German tax advisors manage 50–300 small business clients each. One partnership = dozens of paying users. Harder to close but extremely sticky — they recommend to all clients and almost never churn. Approach after you have 30 direct customers as proof.</div>
+      <div class="stag"><span class="badge bw">Harder to close</span> <span class="badge bs">Highest LTV</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">The customer you're actually selling to</div>
+    <div class="cb">Marcus, 38. SAP BW/4HANA consultant, based near Mannheim. Rates €950/day. Has 2–3 active clients at any time, typically large enterprises but also SAP implementation partners. Had one client restructure and delay payment by 4 months, two years ago. Still thinks about it. Pays for XING Premium, a Steuerberater, liability insurance, and a VPN without blinking. Will pay 12 €/month for anything that removes anxiety about client solvency. Does not want to log into a dashboard — he wants to forget the app exists until it warns him.</div>
+  </div>
+  <button class="btn" onclick="sendPrompt('Write a German-language email I can send to SAP freelancers in the Walldorf/Mannheim area to introduce Insolvenz-Wächter and offer founding member pricing. Make it feel like it comes from a fellow SAP professional, not a startup founder.')">Write the outreach email in German ↗</button>
+</div>
+
+<div class="panel" id="panel-50">
+  <div class="card hi">
+    <div class="ct">Your specific advantage for the first 50: you work at SAP in Walldorf</div>
+    <div class="cb">This is not a generic playbook. You are sitting inside the global headquarters of SAP. The Rhine-Neckar region has the highest density of SAP professionals in the world. Your first 50 customers are within 30km of where you sit. That changes everything about how you approach this.</div>
+  </div>
+
+  <div class="card" style="padding:.75rem 1.25rem;">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <div class="stit">This week — validate before one line of code</div>
+        <div class="sdsc">Post one LinkedIn message today. Not a product pitch. Something like: "Quick question for SAP freelancers in the DACH region — have you ever had a client go insolvent mid-project without warning? How did you protect yourself?" Watch the replies. Screenshot every "yes, happened to me" response. These are your first customers. DM each one personally.</div>
+        <div class="stgt">Goal: 10 "yes this is a real problem" responses</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <div class="stit">Week 1–2 — your warm network</div>
+        <div class="sdsc">Go through your contacts on LinkedIn and XING. Everyone you know who is a freelancer or knows freelancers. Not a mass message — individual DMs. "I'm building a tool that automatically monitors whether your clients are showing insolvency signals. I'm looking for 10 people to try it free for a month in exchange for 30 minutes of feedback. Interested?" Expect 1 in 5 to say yes.</div>
+        <div class="stgt">Goal: 10 beta users who give real feedback</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <div class="stit">Week 3–4 — SAP community specifically</div>
+        <div class="sdsc">Join and post in: SAP Community (community.sap.com), DSAG (German SAP user group — they have a freelancer forum), freelancermap.de SAP category, Gulp.de SAP projects board. These are people who already discuss client relationships, rates, and business risk. Frame it around the insolvency wave: "23,900 German companies went insolvent in 2025 — I built a tool to warn you before one of them is your client."</div>
+        <div class="stgt">Goal: 20 paying customers</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">4</div>
+      <div class="sbody">
+        <div class="stit">Week 4–5 — Rhine-Neckar local outreach</div>
+        <div class="sdsc">Search LinkedIn: "SAP Freelance" + "Walldorf" OR "Mannheim" OR "Heidelberg" OR "Karlsruhe". Send 15 personalised DMs per day. You share a professional context — mention it. "Als jemand der auch im SAP-Ökosystem hier in der Region tätig ist..." That shared identity converts cold outreach into warm conversation. Attend the next local SAP user group event if one is happening.</div>
+        <div class="stgt">Goal: 35 paying customers</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">5</div>
+      <div class="sbody">
+        <div class="stit">Week 5–6 — founding member push</div>
+        <div class="sdsc">Email everyone who signed up but hasn't paid yet. Offer: "Founding member pricing: 9 €/month locked for life — available for the next 48 hours only. After that it's 12 €/month." This converts fence-sitters. Use real urgency — close the offer after 48 hours. Then post publicly: "Last 5 founding member spots remaining."</div>
+        <div class="stgt">Goal: 50 paying customers</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wbox"><strong>What most founders do wrong:</strong> they build for weeks, then start selling. You should be validating and selling from day one — even before the app is finished. Your first 10 customers can pay into a waitlist via a simple Stripe payment link while the app is still being built. That's real validation.</div>
+  <button class="btn" onclick="sendPrompt('Write 5 personalised LinkedIn DM templates in German for reaching out to SAP freelancers about Insolvenz-Wächter. Make them feel like they come from a fellow SAP professional in the Rhine-Neckar region, not a generic startup pitch.')">Write LinkedIn DMs in German ↗</button>
+</div>
+
+<div class="panel" id="panel-edge">
+  <div class="card hi">
+    <div class="ct">Your three genuine unfair advantages</div>
+    <div class="cb">These are things a generic founder building this from Berlin cannot replicate. They are specific to you, your location, and your background.</div>
+  </div>
+  <div class="card" style="padding:.75rem 1.25rem;">
+    <div class="row"><div class="rl">SAP ecosystem credibility</div><div class="rv">When you say "I work in cloud infrastructure at SAP in Walldorf," SAP freelancers immediately know you understand their world — project structures, client types, invoice cycles, the risk of mid-project insolvency. That trust is worth 10x more than any marketing copy.</div></div>
+    <div class="row"><div class="rl">Geographic concentration</div><div class="rv">The Rhine-Neckar region has ~26,000 registered SAP consultants. They are your first 1,000 paying customers if you focus here before going national. Winning one city or one ecosystem deeply is always faster than going broad and shallow.</div></div>
+    <div class="row"><div class="rl">Timing</div><div class="rv">German corporate insolvencies have risen 22–23% per year for two consecutive years and hit a decade high in 2025. This is not a niche concern — it is front-page economic news. Every freelancer reading Handelsblatt or Spiegel Wirtschaft knows the wave is real. Your product is a direct response to a visible, current, growing crisis.</div></div>
+  </div>
+  <div class="card" style="padding:.75rem 1.25rem;">
+    <div class="row"><div class="rl">Your moat over time</div><div class="rv">The API data is available to anyone. Your moat is not the data — it's the <strong>proprietary risk model</strong> you build over time by combining insolvency filings + late annual reports + director changes + Destatis sector data + Bundesbank credit trends into a single company risk score. That takes months of iteration with real users. Start simple, earn the right to build the model.</div></div>
+    <div class="row"><div class="rl">BYOB synergy</div><div class="rv">Your clothing brand project (BYOB) and this app are complementary, not competing. Insolvenz-Wächter generates recurring cash flow — steady, predictable monthly income — that funds your brand experiments without financial pressure. Build both. Let one fund the other.</div></div>
+  </div>
+
+  <div class="metrics" style="margin-top:4px;">
+    <div class="m"><div class="mv">50</div><div class="ml">Paying customers = €600 MRR</div></div>
+    <div class="m"><div class="mv">200</div><div class="ml">Paying customers = €2,400 MRR</div></div>
+    <div class="m"><div class="mv">1,000</div><div class="ml">Paying customers = ~€13,000 MRR</div></div>
+    <div class="m"><div class="mv">~€150</div><div class="ml">Monthly tool costs at scale</div></div>
+  </div>
+  <button class="btn" onclick="sendPrompt('What is the exact first LinkedIn post I should write today in German to validate the Insolvenz-Wächter idea among SAP freelancers? Make it feel natural and conversational, not like a product launch announcement.')">Write my validation post for today ↗</button>
+</div>
+</div>
+
+<script>
+function show(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('panel-'+id).classList.add('on');
+  btn.classList.add('on');
+}
+</script>
