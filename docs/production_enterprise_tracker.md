@@ -1,22 +1,26 @@
-# 🏛️ Insolvenz-Wächter: EU-Expanded Production Enterprise Master Tracker
+# 🏛️ Solven / Insolvenz-Wächter: EU-Expanded Production Enterprise Master Tracker
 
-> **Architecture Target**: Pan-European B2B Solvency & Insolvency Early-Warning System covering **Germany (DE), Austria (AT), Switzerland (CH), and all 27 EU Member States**. Deployed on **Google Cloud Platform (Cloud Run + Cloud SQL Frankfurt `europe-west3`)**, automated Pan-EU 07:00 AM Court Sentinel, Stripe B2B Subscriptions, and strict German & European DSGVO/GDPR compliance.
+> **Architecture Target**: Pan-European B2B Solvency & Insolvency Early-Warning System covering **Germany (DE), Austria (AT), Switzerland (CH), and all 27 EU Member States**. Deployed on **Google Cloud Platform (Cloud Run + Cloud SQL Frankfurt `europe-west3`)**, automated Pan-EU 07:00 AM Court Sentinel, Stripe B2B Subscriptions, verified statutory governance bodies, and strict German & European DSGVO/GDPR compliance.
+>
+> 🔗 **Official GitHub Repository**: [https://github.com/sukratkaushik/solven](https://github.com/sukratkaushik/solven)
 
 ---
 
 ## 📊 Live Progress Summary
 
-| Workstream | Total Tasks | Completed | In Progress | Status |
-| :--- | :---: | :---: | :---: | :--- |
-| **1. Containerization & GCP Foundation** | 4 | 3 | 0 | 🟢 75% Complete (Waiting for User GCP Project) |
-| **2. Database & Frankfurt Data Residency** | 3 | 1 | 0 | 🟡 33% Complete (Migration ready for Cloud SQL) |
-| **3. Enterprise Authentication & Users** | 3 | 3 | 0 | 🟢 100% Completed |
-| **4. Stripe B2B Subscription Engine** | 4 | 3 | 0 | 🟢 75% Complete (Waiting for User Stripe Keys) |
-| **5. Automated 07:00 AM Court Sentinel** | 3 | 2 | 0 | 🟢 66% Complete (Worker & Email Engine ready) |
-| **6. Legal, Security & DSGVO Hardening** | 3 | 3 | 0 | 🟢 100% Completed |
-| **7. Pan-European (EU) Data Architecture** | 6 | 6 | 0 | 🟢 100% Completed |
-| **8. Production Launch & Verification** | 3 | 0 | 0 | ⏳ Ready for Deployment |
-| **TOTAL** | **29** | **21** | **0** | **72% Completed** |
+| Workstream | Total Tasks | Completed | In Progress | Pending User Action | Status |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **1. Containerization & GCP Foundation** | 4 | 3 | 0 | 1 | 🟢 75% Complete (Waiting for GCP Project ID) |
+| **2. Database & Frankfurt Data Residency** | 3 | 1 | 0 | 2 | 🟡 33% Complete (Migration ready for Cloud SQL) |
+| **3. Enterprise Authentication & Users** | 3 | 3 | 0 | 0 | 🟢 100% Completed |
+| **4. Stripe B2B Subscription Engine** | 4 | 3 | 0 | 1 | 🟢 75% Complete (Waiting for Stripe Live Keys) |
+| **5. Automated 07:00 AM Court Sentinel** | 3 | 2 | 0 | 1 | 🟢 66% Complete (Worker & Email Engine ready) |
+| **6. Legal, Security & DSGVO Hardening** | 3 | 3 | 0 | 0 | 🟢 100% Completed |
+| **7. Pan-European (EU) Data Architecture** | 6 | 6 | 0 | 0 | 🟢 100% Completed |
+| **8. Data Integrity & Governance Audit** | 4 | 4 | 0 | 0 | 🟢 100% Completed |
+| **9. Repository & Open Architecture Sync** | 2 | 2 | 0 | 0 | 🟢 100% Completed |
+| **10. Production Launch & Verification** | 3 | 0 | 0 | 3 | ⏳ Ready for Domain & Deploy |
+| **TOTAL** | **35** | **27** | **0** | **8** | **77% Completed (100% AI Tasks Delivered)** |
 
 ---
 
@@ -30,9 +34,11 @@ flowchart TD
     W3 --> W4
     W2 --> W7["7. Pan-European (EU) Architecture ✅"]
     W7 --> W5["5. Automated Court Sentinel (Pan-EU IRI) ✅"]
+    W7 --> W8_DATA["8. Data Integrity & Board Governance ✅"]
+    W8_DATA --> W9["9. GitHub Source Sync ✅"]
     W4 --> W6["6. Legal, Security & DSGVO ✅"]
     W5 --> W6
-    W6 --> W8["8. Production Launch & Verification ⏳"]
+    W6 --> W10["10. Production Launch & Verification ⏳"]
 ```
 
 ---
@@ -121,11 +127,33 @@ flowchart TD
 
 ---
 
-### Workstream 8: Production Launch & Smoke Testing
+### Workstream 8: Data Integrity, Governance Bodies & Client Stability
+*Goal: Ensure 100% accurate statutory governance structures (Executive Board / Vorstand, CFO, Prokuristen), elimination of unverified dummy names, and zero-error client state management.*
+
+| ID | Task Description | Owner | Est. Time | Status | Artifact / File |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| **T8.1** | **Statutory Board Validation (Vorstand vs Prokurist)**: Correct board structures for DAX & EU bellwethers (e.g. SAP SE: Christian Klein CEO, Dominik Asam CFO correctly classified under Executive Board rather than Prokurist). | **AI** | 30 mins | [✅] Completed | `src/app/api/companies/[id]/audit/route.ts` |
+| **T8.2** | **Depleted API Credit Fallback Integrity**: Replace dummy name generator pools with statutory registry verification notices when live credits are 0 to prevent hallucinated executive names. | **AI** | 30 mins | [✅] Completed | `src/app/api/companies/[id]/audit/route.ts` |
+| **T8.3** | **Client-Side Watchlist Resilience (`sessionStorage`)**: Implement zero-crash demo mode allowing companies to be added or removed without throwing PostgreSQL UUID parse errors when unauthenticated. | **AI** | 45 mins | [✅] Completed | `src/app/dashboard/page.tsx` |
+| **T8.4** | **UI Scaling & CSS Cache Hardening**: Add explicit pixel sizing to all SVGs (`width="20" height="20"`) and resolve `.next` layout cache conflicts to prevent fullscreen shield blowouts. | **AI** | 30 mins | [✅] Completed | `src/components/*`, `src/app/dashboard/page.tsx` |
+
+---
+
+### Workstream 9: Repository & Open Architecture Sync
+*Goal: Complete Git version control setup, strategic documentation migration, and clean public GitHub release.*
+
+| ID | Task Description | Owner | Est. Time | Status | Artifact / File |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| **T9.1** | **Documentation Consolidation**: Move all enterprise trackers, launch plans, and sentinel architecture docs into version-controlled `/docs` folder. | **AI** | 20 mins | [✅] Completed | `docs/*` |
+| **T9.2** | **GitHub Repository Publication**: Initialize unified root Git repository, enforce secret guards in `.gitignore`, and publish to `https://github.com/sukratkaushik/solven` on `main`. | **AI** | 30 mins | [✅] Completed | `README.md`, `.gitignore`, `github.com/sukratkaushik/solven` |
+
+---
+
+### Workstream 10: Production Launch & Smoke Testing
 *Goal: DNS routing, end-to-end payment verification, and public go-live.*
 
 | ID | Task Description | Owner | Est. Time | Status | Artifact / File |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| **T8.1** | **Custom Domain DNS & SSL**: Point `.de` or `.eu` domain to Cloud Run with automatic Google-managed SSL. | **User** | 30 mins | [ ] User Action | Domain Registrar / DNS |
-| **T8.2** | **End-to-End Test Transaction**: Run a test Stripe subscription checkout and verify instant quota upgrade to 25 companies. | **AI / User** | 20 mins | [ ] User Action | Live App |
-| **T8.3** | **Production Go-Live Smoke Test**: Verify Yahoo Finance live feeds, due diligence PDF printing, and test court sentinel dispatch. | **AI / User** | 20 mins | [ ] User Action | Production URL |
+| **T10.1** | **Custom Domain DNS & SSL**: Point `.de` or `.eu` domain to Cloud Run with automatic Google-managed SSL. | **User** | 30 mins | [ ] User Action | Domain Registrar / DNS |
+| **T10.2** | **End-to-End Test Transaction**: Run a test Stripe subscription checkout and verify instant quota upgrade to 25 companies. | **AI / User** | 20 mins | [ ] User Action | Live App |
+| **T10.3** | **Production Go-Live Smoke Test**: Verify Yahoo Finance live feeds, due diligence PDF printing, and test court sentinel dispatch. | **AI / User** | 20 mins | [ ] User Action | Production URL |
