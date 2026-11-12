@@ -10,7 +10,7 @@
 
 | Workstream | Total Tasks | Completed | In Progress | Pending User Action | Status |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **1. Containerization & GCP Foundation** | 4 | 3 | 0 | 1 | 🟢 75% Complete (Waiting for GCP Project ID) |
+| **1. Containerization & GCP Foundation** | 4 | 4 | 0 | 0 | 🟢 100% Completed (Live on Cloud Run) |
 | **2. Database & Frankfurt Data Residency** | 3 | 1 | 0 | 2 | 🟡 33% Complete (Migration ready for Cloud SQL) |
 | **3. Enterprise Authentication & Users** | 3 | 3 | 0 | 0 | 🟢 100% Completed |
 | **4. Stripe B2B Subscription Engine** | 4 | 3 | 0 | 1 | 🟢 75% Complete (Waiting for Stripe Live Keys) |
@@ -19,8 +19,8 @@
 | **7. Pan-European (EU) Data Architecture** | 6 | 6 | 0 | 0 | 🟢 100% Completed |
 | **8. Data Integrity & Governance Audit** | 4 | 4 | 0 | 0 | 🟢 100% Completed |
 | **9. Repository & Open Architecture Sync** | 2 | 2 | 0 | 0 | 🟢 100% Completed |
-| **10. Production Launch & Verification** | 3 | 0 | 0 | 3 | ⏳ Ready for Domain & Deploy |
-| **TOTAL** | **35** | **27** | **0** | **8** | **77% Completed (100% AI Tasks Delivered)** |
+| **10. Production Launch & Verification** | 3 | 1 | 0 | 2 | 🟢 Cloud Run Deployed |
+| **TOTAL** | **35** | **29** | **0** | **6** | **83% Completed** |
 
 ---
 
@@ -45,7 +45,7 @@ flowchart TD
 
 ## 📋 Master Task Breakdown
 
-### Workstream 7: Pan-European (EU) Data & Country Architecture (NEW CORE)
+### Workstream 7: Pan-European (EU) Data & Country Architecture (CORE REQUIREMENT)
 *Goal: Enable users to select any European country before searching, routing queries to national commercial and insolvency registers across Germany, Austria, Switzerland, France, Netherlands, Italy, Spain, and all 27 EU member states.*
 
 | ID | Task Description | Previous Dep | Next Dep | Owner | Est. Time | Status | Artifact / File |
@@ -59,15 +59,37 @@ flowchart TD
 
 ---
 
+### Workstream 8: Data Integrity, Governance Bodies & Client Stability
+*Goal: Ensure 100% accurate statutory governance structures (Executive Board / Vorstand, CFO, Prokuristen), elimination of unverified dummy names, and zero-error client state management.*
+
+| ID | Task Description | Owner | Est. Time | Status | Artifact / File |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| **T8.1** | **Statutory Board Validation (Vorstand vs Prokurist)**: Correct board structures for DAX & EU bellwethers (e.g. SAP SE: Christian Klein CEO, Dominik Asam CFO correctly classified under Executive Board rather than Prokurist). | **AI** | 30 mins | [✅] Completed | `src/app/api/companies/[id]/audit/route.ts` |
+| **T8.2** | **Depleted API Credit Fallback Integrity**: Replace dummy name generator pools with statutory registry verification notices when live credits are 0 to prevent hallucinated executive names. | **AI** | 30 mins | [✅] Completed | `src/app/api/companies/[id]/audit/route.ts` |
+| **T8.3** | **Client-Side Watchlist Resilience (`sessionStorage`)**: Implement zero-crash demo mode allowing companies to be added or removed without throwing PostgreSQL UUID parse errors when unauthenticated. | **AI** | 45 mins | [✅] Completed | `src/app/dashboard/page.tsx` |
+| **T8.4** | **UI Scaling & CSS Cache Hardening**: Add explicit pixel sizing to all SVGs (`width="20" height="20"`) and resolve `.next` layout cache conflicts to prevent fullscreen shield blowouts. | **AI** | 30 mins | [✅] Completed | `src/components/*`, `src/app/dashboard/page.tsx` |
+
+---
+
+### Workstream 9: Repository & Open Architecture Sync
+*Goal: Complete Git version control setup, strategic documentation migration, and clean public GitHub release.*
+
+| ID | Task Description | Owner | Est. Time | Status | Artifact / File |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| **T9.1** | **Documentation Consolidation**: Move all enterprise trackers, launch plans, and sentinel architecture docs into version-controlled `/docs` folder. | **AI** | 20 mins | [✅] Completed | `docs/*` |
+| **T9.2** | **GitHub Repository Publication**: Initialize unified root Git repository, enforce secret guards in `.gitignore`, and publish to `https://github.com/sukratkaushik/solven` on `main`. | **AI** | 30 mins | [✅] Completed | `README.md`, `.gitignore`, `github.com/sukratkaushik/solven` |
+
+---
+
 ### Workstream 1: Containerization & GCP Foundation
 *Goal: Package the Next.js app into a production-hardened Docker container ready for serverless deployment on Google Cloud Run.*
 
 | ID | Task Description | Owner | Est. Time | Status | Artifact / File |
 | :---: | :--- | :---: | :---: | :---: | :--- |
 | **T1.1** | **Next.js Standalone Configuration**: Enable `output: 'standalone'` in `next.config.mjs` to minimize container size to <120MB. | **AI** | 20 mins | [✅] Completed | `next.config.mjs` |
-| **T1.2** | **Multi-Stage Production Dockerfile**: Multi-stage Node 20 Alpine container with non-root `nextjs` user and `/api/health` check. | **AI** | 45 mins | [✅] Completed | `Dockerfile`, `.dockerignore`, `/api/health` |
-| **T1.3** | **GCP Project & Artifact Registry Setup**: Create GCP project, enable Cloud Run & Artifact Registry APIs in Frankfurt (`europe-west3`). | **User** | 30 mins | [ ] User Action | GCP Console |
-| **T1.4** | **Cloud Run Service Configuration & Deploy Script**: Define `cloudrun-service.yaml` (0-10 autoscaling) and `deploy-gcp.sh`. | **AI** | 30 mins | [✅] Completed | `cloudrun-service.yaml`, `deploy-gcp.sh` |
+| **T1.2** | **Multi-Stage Production Dockerfile**: Multi-stage Node 22 Alpine container with non-root `nextjs` user, public directory fallbacks, and `/api/health` check. | **AI** | 45 mins | [✅] Completed | `Dockerfile`, `.dockerignore`, `/api/health` |
+| **T1.3** | **GCP Project & Artifact Registry Setup**: Created GCP project `solven-sentinel`, enabled Cloud Run & Artifact Registry in Frankfurt (`europe-west3`). | **User** | 30 mins | [✅] Completed | GCP Console / Cloud Shell |
+| **T1.4** | **Cloud Run Service Deployment**: Container deployed and live in Frankfurt (`europe-west3`) with autoscaling 0-10 instances. | **AI / User** | 30 mins | [✅] Completed | `https://insolvenz-waechter-iy3ndkxw3a-ey.a.run.app` |
 
 ---
 
@@ -124,28 +146,6 @@ flowchart TD
 | **T6.1** | **Legal Pages (Impressum, Datenschutz, AGB)**: Compliant German legal notices with Frankfurt data residency disclosures and § 5 DDG imprint. | **AI** | 45 mins | [✅] Completed | `/impressum`, `/datenschutz`, `/agb` |
 | **T6.2** | **Security Headers & Hardening**: Strict CSP, HSTS (2 years), X-Frame-Options, X-Content-Type-Options in `next.config.mjs`. | **AI** | 30 mins | [✅] Completed | `next.config.mjs` |
 | **T6.3** | **Cookie & Consent Banner**: Zero-tracking privacy notice with persistent local consent and footer compliance links. | **AI** | 30 mins | [✅] Completed | `src/components/CookieBanner.tsx`, `src/app/layout.tsx` |
-
----
-
-### Workstream 8: Data Integrity, Governance Bodies & Client Stability
-*Goal: Ensure 100% accurate statutory governance structures (Executive Board / Vorstand, CFO, Prokuristen), elimination of unverified dummy names, and zero-error client state management.*
-
-| ID | Task Description | Owner | Est. Time | Status | Artifact / File |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| **T8.1** | **Statutory Board Validation (Vorstand vs Prokurist)**: Correct board structures for DAX & EU bellwethers (e.g. SAP SE: Christian Klein CEO, Dominik Asam CFO correctly classified under Executive Board rather than Prokurist). | **AI** | 30 mins | [✅] Completed | `src/app/api/companies/[id]/audit/route.ts` |
-| **T8.2** | **Depleted API Credit Fallback Integrity**: Replace dummy name generator pools with statutory registry verification notices when live credits are 0 to prevent hallucinated executive names. | **AI** | 30 mins | [✅] Completed | `src/app/api/companies/[id]/audit/route.ts` |
-| **T8.3** | **Client-Side Watchlist Resilience (`sessionStorage`)**: Implement zero-crash demo mode allowing companies to be added or removed without throwing PostgreSQL UUID parse errors when unauthenticated. | **AI** | 45 mins | [✅] Completed | `src/app/dashboard/page.tsx` |
-| **T8.4** | **UI Scaling & CSS Cache Hardening**: Add explicit pixel sizing to all SVGs (`width="20" height="20"`) and resolve `.next` layout cache conflicts to prevent fullscreen shield blowouts. | **AI** | 30 mins | [✅] Completed | `src/components/*`, `src/app/dashboard/page.tsx` |
-
----
-
-### Workstream 9: Repository & Open Architecture Sync
-*Goal: Complete Git version control setup, strategic documentation migration, and clean public GitHub release.*
-
-| ID | Task Description | Owner | Est. Time | Status | Artifact / File |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| **T9.1** | **Documentation Consolidation**: Move all enterprise trackers, launch plans, and sentinel architecture docs into version-controlled `/docs` folder. | **AI** | 20 mins | [✅] Completed | `docs/*` |
-| **T9.2** | **GitHub Repository Publication**: Initialize unified root Git repository, enforce secret guards in `.gitignore`, and publish to `https://github.com/sukratkaushik/solven` on `main`. | **AI** | 30 mins | [✅] Completed | `README.md`, `.gitignore`, `github.com/sukratkaushik/solven` |
 
 ---
 
