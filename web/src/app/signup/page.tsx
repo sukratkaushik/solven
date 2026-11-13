@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n';
 
@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
   const { language } = useLanguage();
   const isDe = language === 'de';
 
@@ -33,24 +34,22 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, fullName }),
       });
+      const data = await res.json();
 
-      if (signUpError) {
-        setError(signUpError.message);
+      if (!res.ok) {
+        setError(data.error || (isDe ? 'Registrierung fehlgeschlagen.' : 'Signup failed.'));
       } else {
         setMessage(
-          isDe 
-            ? 'Registrierung erfolgreich! Bitte überprüfen Sie Ihren E-Mail-Posteingang, um Ihre Adresse zu bestätigen.'
-            : 'Registration successful! Please check your email inbox to verify your account.'
+          isDe
+            ? 'Konto erstellt! Sie werden zum Dashboard weitergeleitet...'
+            : 'Account created! Redirecting to dashboard...'
         );
+        router.push('/dashboard');
       }
     } catch {
       setError(

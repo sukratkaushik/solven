@@ -20,8 +20,6 @@ RUN mkdir -p /app/public
 # Environment variables for build phase
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-ENV NEXT_PUBLIC_SUPABASE_URL=https://placeholder-gcp-postgres.local
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key
 
 RUN npm run build
 

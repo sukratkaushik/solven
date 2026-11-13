@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase/client';
 import { useLanguage } from '@/lib/i18n';
 import { SUPPORTED_COUNTRIES, CountryConfig, getCountryByCode } from '@/lib/countries';
 
@@ -115,10 +114,11 @@ export default function SearchModal({ onClose, onAdded }: SearchModalProps) {
         (sessionStorage.getItem('demo_mode') === 'true' ||
           window.location.search.includes('demo=true'));
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const authRes = await fetch('/api/auth/me');
+      const authData = authRes.ok ? await authRes.json() : { user: null };
 
       // If user is in demo mode or unauthenticated demo preview
-      if (isDemo || userError || !userData?.user) {
+      if (isDemo || !authData?.user) {
         if (isDemo || typeof window !== 'undefined') {
           sessionStorage.setItem('demo_mode', 'true');
           const stored = sessionStorage.getItem('demo_watchlist');
@@ -156,44 +156,10 @@ export default function SearchModal({ onClose, onAdded }: SearchModalProps) {
         throw new Error(t('search.error_auth'));
       }
 
-      const user = userData.user;
-
-      // 1. Check Watchlist Limit
-      const { count, error: countError } = await supabase
-        .from('watchlist')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      if (countError) throw countError;
-
-      // 2. Check Subscription Tier
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('subscription_tier, max_companies')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
-
-      const tier = (profile?.subscription_tier || 'free') as 'free' | 'pro' | 'business';
-      const maxAllowed = profile?.max_companies || (tier === 'business' ? 100 : tier === 'pro' ? 25 : 3);
-
-      if (count !== null && count >= maxAllowed) {
-        setError(
-          tier === 'free'
-            ? 'Gratis-Limit erreicht (3 Unternehmen). Upgraden Sie auf Pro, um bis zu 25 europäische Unternehmen zu überwachen.'
-            : `Tarif-Limit von ${maxAllowed} Unternehmen erreicht. Kontaktieren Sie uns für ein Kanzlei-Upgrade.`
-        );
-        return;
-      }
-
-      // 3. Insert into watchlist with country data
-      const { error: insertError } = await supabase
-        .from('watchlist')
-        .insert({
-          user_id: user.id,
+      const res = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           company_name: company.name,
           company_id: company.id,
           company_city: company.city,
@@ -202,20 +168,13 @@ export default function SearchModal({ onClose, onAdded }: SearchModalProps) {
           register_authority: company.register_authority || selectedCountry.registerName,
           currency: selectedCountry.currency,
           vat_number: company.vat_number,
-        });
+        }),
+      });
 
-      if (insertError) {
-        // Fallback without new columns in case migration is pending on remote DB
-        const { error: fallbackError } = await supabase
-          .from('watchlist')
-          .insert({
-            user_id: user.id,
-            company_name: company.name,
-            company_id: company.id,
-            company_city: company.city,
-            legal_form: company.legal_form,
-          });
-        if (fallbackError) throw fallbackError;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.error || 'Fehler beim Hinzufügen.');
+        return;
       }
 
       onAdded();

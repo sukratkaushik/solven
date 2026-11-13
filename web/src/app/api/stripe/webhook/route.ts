@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { isDatabaseConfigured, query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,6 +7,10 @@ export async function POST(request: NextRequest) {
     const event = JSON.parse(rawBody);
 
     console.log(`[Stripe Webhook] Received event: ${event.type}`);
+
+    if (!isDatabaseConfigured()) {
+      return NextResponse.json({ received: true, note: 'Database not configured' });
+    }
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -16,14 +20,15 @@ export async function POST(request: NextRequest) {
 
         if (userId) {
           console.log(`[Stripe Webhook] Upgrading user ${userId} to Pro plan...`);
-          await supabase
-            .from('profiles')
-            .update({
-              stripe_customer_id: customerId,
-              subscription_status: 'active',
-              subscription_tier: 'pro',
-            })
-            .eq('id', userId);
+          await query(
+            `UPDATE public.users
+             SET stripe_customer_id = $1,
+                 subscription_status = 'active',
+                 subscription_tier = 'pro',
+                 max_companies = 25
+             WHERE id = $2`,
+            [customerId, userId]
+          );
         }
         break;
       }
@@ -33,18 +38,18 @@ export async function POST(request: NextRequest) {
         const customerId = subscription.customer;
 
         console.log(`[Stripe Webhook] Subscription canceled for customer ${customerId}`);
-        await supabase
-          .from('profiles')
-          .update({
-            subscription_status: 'canceled',
-            subscription_tier: 'free',
-          })
-          .eq('stripe_customer_id', customerId);
+        await query(
+          `UPDATE public.users
+           SET subscription_status = 'canceled',
+               subscription_tier = 'free',
+               max_companies = 3
+           WHERE stripe_customer_id = $1`,
+          [customerId]
+        );
         break;
       }
 
       default:
-        // Ignore unhandled event types
         break;
     }
 

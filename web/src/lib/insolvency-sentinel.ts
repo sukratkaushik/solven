@@ -1,9 +1,10 @@
 // =========================================================================
 // Automated Pan-European (EU) Insolvency Court Sentinel & Risk Dispatcher
 // Operates under German InsO & European Insolvency Regulation (EU) 2015/848
+// Backed by GCP Cloud SQL PostgreSQL (europe-west3)
 // =========================================================================
 
-import { supabase } from '@/lib/supabase/client';
+import { isDatabaseConfigured, query } from '@/lib/db';
 import { sendInsolvencyAlertEmail } from '@/lib/email';
 import { getCountryByCode } from '@/lib/countries';
 
@@ -16,17 +17,51 @@ export interface SentinelRunResult {
   timestamp: string;
 }
 
+interface WatchlistSubscriberRow {
+  id: string;
+  user_id: string;
+  company_id: string | null;
+  company_name: string;
+  company_city: string | null;
+  country_code: string | null;
+  register_authority: string | null;
+  user_email: string | null;
+  full_name: string | null;
+}
+
+interface CourtCacheRow {
+  status: string;
+  case_number: string | null;
+  register_court: string;
+  filing_date: string | null;
+}
+
 export async function runInsolvencySentinel(): Promise<SentinelRunResult> {
   console.log('[Sentinel] Starting 07:00 AM Pan-European judicial registry sync (EU-IRI & DACH)...');
 
-  // 1. Fetch all actively watched companies across all users
-  const { data: watchlistItems, error: watchError } = await supabase
-    .from('watchlist')
-    .select('*, profiles:user_id(email, full_name)')
-    .eq('status', 'active');
+  if (!isDatabaseConfigured()) {
+    console.warn('[Sentinel] Cloud SQL database not configured yet — skipping scan.');
+    return {
+      totalMonitored: 0,
+      uniqueCompanies: 0,
+      alertsDetected: 0,
+      emailsSent: 0,
+      jurisdictionsScanned: [],
+      timestamp: new Date().toISOString(),
+    };
+  }
 
-  if (watchError || !watchlistItems) {
-    console.error('[Sentinel] Error fetching watchlist:', watchError);
+  // 1. Fetch all actively watched companies across all users
+  const { rows: watchlistItems } = await query<WatchlistSubscriberRow>(
+    `SELECT w.id, w.user_id, w.company_id, w.company_name, w.company_city,
+            w.country_code, w.register_authority,
+            u.email AS user_email, u.full_name
+     FROM public.watchlist w
+     JOIN public.users u ON u.id = w.user_id
+     WHERE w.status = 'active'`
+  );
+
+  if (!watchlistItems.length) {
     return {
       totalMonitored: 0,
       uniqueCompanies: 0,
@@ -38,7 +73,7 @@ export async function runInsolvencySentinel(): Promise<SentinelRunResult> {
   }
 
   // 2. Group unique companies by (country_code + register_id) to eliminate duplicate court queries
-  const uniqueCompaniesMap = new Map<string, typeof watchlistItems>();
+  const uniqueCompaniesMap = new Map<string, WatchlistSubscriberRow[]>();
   const scannedCountries = new Set<string>();
 
   for (const item of watchlistItems) {
@@ -59,8 +94,7 @@ export async function runInsolvencySentinel(): Promise<SentinelRunResult> {
   let emailsSent = 0;
 
   // 3. Check each unique company in court cache / live European gazettes
-  const uniqueEntries = Array.from(uniqueCompaniesMap.entries());
-  for (const [, subscribers] of uniqueEntries) {
+  for (const [, subscribers] of Array.from(uniqueCompaniesMap.entries())) {
     const sample = subscribers[0];
     const countryCode = (sample.country_code || 'DE').toUpperCase();
     const country = getCountryByCode(countryCode);
@@ -68,41 +102,46 @@ export async function runInsolvencySentinel(): Promise<SentinelRunResult> {
     const regNo = sample.company_id || 'REG';
     const court = sample.register_authority || `${country.registerName} (${sample.company_city || 'Zentrale'})`;
 
-    // Query court cache for notices in this national jurisdiction
-    const { data: cachedNotice } = await supabase
-      .from('court_cache')
-      .select('*')
-      .eq('register_number', regNo)
-      .eq('country_code', countryCode)
-      .maybeSingle();
+    const { rows: cachedRows } = await query<CourtCacheRow>(
+      `SELECT status, case_number, register_court, filing_date
+       FROM public.court_cache
+       WHERE register_number = $1 AND country_code = $2
+       LIMIT 1`,
+      [regNo, countryCode]
+    );
+    const cachedNotice = cachedRows[0];
 
     if (cachedNotice && cachedNotice.status !== 'clear') {
       alertsDetected++;
 
-      // Dispatch alert to each subscribed user
       for (const sub of subscribers) {
-        const userEmail = (sub as unknown as { profiles?: { email?: string } })?.profiles?.email;
+        const userEmail = sub.user_email;
 
-        // Record in alerts table with country metadata
-        await supabase.from('alerts').insert({
-          user_id: sub.user_id,
-          company_id: sub.company_id,
-          company_name: sub.company_name,
-          country_code: countryCode,
-          alert_type: cachedNotice.status,
-          details: {
-            caseNumber: cachedNotice.case_number || 'IN 102/26',
-            court: cachedNotice.register_court || court,
-            filingDate: cachedNotice.filing_date,
+        const details = {
+          caseNumber: cachedNotice.case_number || 'IN 102/26',
+          court: cachedNotice.register_court || court,
+          filingDate: cachedNotice.filing_date,
+          countryCode,
+          legalNoticeSource:
+            countryCode === 'DE' ? 'insolvenzbekanntmachungen.de' : 'European Insolvency Register (IRI)',
+        };
+
+        await query(
+          `INSERT INTO public.alerts (user_id, company_id, company_name, country_code, alert_type, details, email_sent)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)`,
+          [
+            sub.user_id,
+            sub.company_id,
+            sub.company_name,
             countryCode,
-            legalNoticeSource: countryCode === 'DE' ? 'insolvenzbekanntmachungen.de' : 'European Insolvency Register (IRI)',
-          },
-          email_sent: !!userEmail,
-        });
+            cachedNotice.status,
+            JSON.stringify(details),
+            Boolean(userEmail),
+          ]
+        );
 
-        // Send email via Resend if email is configured
         if (userEmail) {
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002';
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://insolvenz-waechter-iy3ndkxw3a-ey.a.run.app';
           await sendInsolvencyAlertEmail({
             to: userEmail,
             companyName,

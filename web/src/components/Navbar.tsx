@@ -1,16 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n';
 
+interface AuthUser {
+  id: string;
+  email: string;
+  fullName?: string | null;
+}
+
 export default function Navbar() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { t, language, setLanguage } = useLanguage();
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,19 +27,16 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : { user: null }))
+      .then((data) => setUser(data.user || null))
+      .catch(() => setUser(null));
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null);
+    router.push('/');
   };
 
   const navLinks = language === 'de' ? [

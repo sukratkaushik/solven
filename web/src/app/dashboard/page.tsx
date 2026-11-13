@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import SearchModal from '@/components/SearchModal';
 import CompanyDossierModal from '@/components/CompanyDossierModal';
@@ -89,9 +88,10 @@ export default function DashboardPage() {
         (sessionStorage.getItem('demo_mode') === 'true' ||
           window.location.search.includes('demo=true'));
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const authRes = await fetch('/api/auth/me');
+      const authData = authRes.ok ? await authRes.json() : { user: null };
 
-      if (isDemo || userError || !userData?.user) {
+      if (isDemo || !authData?.user) {
         if (isDemo) {
           sessionStorage.setItem('demo_mode', 'true');
           const stored = sessionStorage.getItem('demo_watchlist');
@@ -115,16 +115,12 @@ export default function DashboardPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('watchlist')
-        .select('*')
-        .eq('user_id', userData.user.id)
-        .order('added_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching watchlist:', error);
+      const res = await fetch('/api/watchlist');
+      if (!res.ok) {
+        console.error('Error fetching watchlist:', await res.text());
       } else {
-        setWatchlist(data || []);
+        const data = await res.json();
+        setWatchlist(data.items || []);
       }
     } catch (err) {
       console.error(err);
@@ -161,18 +157,16 @@ export default function DashboardPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('watchlist')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const res = await fetch(`/api/watchlist?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Delete failed');
       setWatchlist((prev) => prev.filter((item) => item.id !== id));
       if (selectedCompany?.id === id) {
         setSelectedCompany(null);
       }
     } catch (error) {
-      console.error('Error deleting item from Supabase:', error);
+      console.error('Error deleting item from Cloud SQL:', error);
       // Graceful fallback: remove locally
       setWatchlist((prev) => prev.filter((item) => item.id !== id));
       if (selectedCompany?.id === id) {

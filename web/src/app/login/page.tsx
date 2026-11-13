@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n';
@@ -19,42 +18,16 @@ export default function LoginPage() {
   const { language } = useLanguage();
   const isDe = language === 'de';
 
-  // Listen for Supabase password recovery / redirect tokens in the URL hash
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecovery(true);
-        setMessage(
-          isDe 
-            ? 'Bitte vergeben Sie jetzt ein neues Passwort.' 
-            : 'Please set your new password now.'
-        );
-      } else if (session && !isRecovery) {
-        router.push('/dashboard');
-      }
-    });
-
-    if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          if (window.location.hash.includes('type=recovery')) {
-            setIsRecovery(true);
-            setMessage(
-              isDe 
-                ? 'Passwort-Wiederherstellung aktiv: Bitte neues Passwort eingeben.' 
-                : 'Password recovery active: Please enter your new password.'
-            );
-          } else {
-            router.push('/dashboard');
-          }
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : { user: null }))
+      .then((data) => {
+        if (data?.user && !isRecovery) {
+          router.push('/dashboard');
         }
-      });
-    }
-
-    return () => subscription.unsubscribe();
-  }, [router, isRecovery, isDe]);
+      })
+      .catch(() => {});
+  }, [router, isRecovery]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,14 +36,19 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
+      const data = await res.json();
 
-      if (signInError) {
-        setError(signInError.message);
+      if (!res.ok) {
+        setError(data.error || (isDe ? 'Anmeldung fehlgeschlagen.' : 'Login failed.'));
       } else {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('demo_mode');
+        }
         router.push('/dashboard');
       }
     } catch {
@@ -82,64 +60,21 @@ export default function LoginPage() {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (newPassword.length < 6) {
-      setError(
-        isDe 
-          ? 'Das Passwort muss mindestens 6 Zeichen lang sein.' 
-          : 'Password must be at least 6 characters.'
-      );
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) {
-        setError(updateError.message);
-      } else {
-        setMessage(
-          isDe 
-            ? 'Passwort erfolgreich aktualisiert! Sie werden weitergeleitet...' 
-            : 'Password successfully updated! Redirecting...'
-        );
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 1500);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    setIsRecovery(false);
+    setMessage(
+      isDe
+        ? 'Passwort-Reset wird in Kürze über Google Sign-In verwaltet.'
+        : 'Password management is transitioning to Google Sign-In.'
+    );
   };
 
   const handleResetPasswordRequest = async () => {
-    if (!email) {
-      setError(
-        isDe 
-          ? 'Bitte geben Sie zuerst Ihre E-Mail-Adresse im Formular ein.' 
-          : 'Please enter your email address first.'
-      );
-      return;
-    }
     setError(null);
-    setMessage(null);
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3002';
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/login`,
-    });
-    if (resetError) {
-      setError(resetError.message);
-    } else {
-      setMessage(
-        isDe 
-          ? `Ein Wiederherstellungs-Link wurde an ${email} gesendet.` 
-          : `A password reset link was sent to ${email}.`
-      );
-    }
+    setMessage(
+      isDe
+        ? 'Bitte nutzen Sie den Demo-Zugang oder erstellen Sie ein neues Konto.'
+        : 'Please use Demo Access or create a new account.'
+    );
   };
 
   const handleDemoAccess = () => {
