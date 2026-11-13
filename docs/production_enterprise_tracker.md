@@ -11,7 +11,7 @@
 | Workstream | Total Tasks | Completed | In Progress | Pending User Action | Status |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **1. Containerization & GCP Foundation** | 4 | 4 | 0 | 0 | 🟢 100% Completed (Live on Cloud Run) |
-| **2. Database & Frankfurt Data Residency** | 3 | 1 | 0 | 2 | 🟡 33% Complete (Migration ready for Cloud SQL) |
+| **2. Database & Frankfurt Data Residency** | 3 | 3 | 0 | 0 | 🟢 100% Completed (Cloud SQL `solven-db` Live) |
 | **3. Enterprise Authentication & Users** | 3 | 3 | 0 | 0 | 🟢 100% Completed |
 | **4. Stripe B2B Subscription Engine** | 4 | 3 | 0 | 1 | 🟢 75% Complete (Waiting for Stripe Live Keys) |
 | **5. Automated 07:00 AM Court Sentinel** | 3 | 3 | 0 | 0 | 🟢 100% Completed (07:00 CET Job Active) |
@@ -20,7 +20,7 @@
 | **8. Data Integrity & Governance Audit** | 4 | 4 | 0 | 0 | 🟢 100% Completed |
 | **9. Repository & Open Architecture Sync** | 2 | 2 | 0 | 0 | 🟢 100% Completed |
 | **10. Production Launch & Verification** | 3 | 1 | 0 | 2 | 🟢 Cloud Run Deployed |
-| **TOTAL** | **35** | **30** | **0** | **5** | **86% Completed** |
+| **TOTAL** | **35** | **32** | **0** | **3** | **91% Completed** |
 
 ---
 
@@ -98,9 +98,9 @@ flowchart TD
 
 | ID | Task Description | Owner | Est. Time | Status | Artifact / File |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| **T2.1** | **Cloud SQL Instance Provisioning**: Provision PostgreSQL instance (`db-f1-micro` or Neon serverless) in Frankfurt (`europe-west3`). | **User** | 30 mins | [ ] User Action | GCP Console / Cloud SQL |
-| **T2.2** | **Enterprise Production Migrations**: Schema for `profiles` (tier quotas), `court_cache` (deduplication), `subscriptions`, and `audit_logs` (Art. 30 DSGVO). | **AI** | 45 mins | [✅] Completed | `supabase/migrations/02_enterprise_production.sql` |
-| **T2.3** | **Connection Pooling & Cloud SQL Proxy**: Connect Cloud Run container to PostgreSQL via Unix socket. | **AI** | 30 mins | [ ] Dependent on T2.1 | `cloudrun-service.yaml` |
+| **T2.1** | **Cloud SQL Instance Provisioning**: Provisioned PostgreSQL 16 instance `solven-db` (`db-f1-micro`) in Frankfurt (`europe-west3`). | **User** | 30 mins | [✅] Completed | GCP Cloud SQL (`solven-db`) |
+| **T2.2** | **Enterprise Production Migrations**: Applied pure PostgreSQL schema (`users`, `watchlist`, `court_cache`, `alerts`, `subscriptions`, `audit_logs`). | **AI / User** | 45 mins | [✅] Completed | `web/db/schema.sql` |
+| **T2.3** | **Connection Pooling & Cloud SQL Proxy**: Connected Cloud Run (`insolvenz-waechter-00004-rxf`) to `solven-db` via Unix socket & `pg` pool. | **AI / User** | 30 mins | [✅] Completed | `web/src/lib/db.ts`, Cloud Run |
 
 ---
 
