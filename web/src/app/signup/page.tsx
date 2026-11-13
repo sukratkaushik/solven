@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -107,6 +108,16 @@ export default function SignupPage() {
                 <span>{error}</span>
               </div>
             )}
+
+            <GoogleSignInButton mode="signup" />
+
+            <div className="my-5 flex items-center">
+              <div className="flex-1 border-t border-[#E8EAE6]" />
+              <span className="px-3 text-[11px] font-bold uppercase tracking-wider text-[#8EA197]">
+                {isDe ? 'oder mit E-Mail' : 'or with email'}
+              </span>
+              <div className="flex-1 border-t border-[#E8EAE6]" />
+            </div>
 
             <form className="space-y-4" onSubmit={handleSignup}>
               <div>

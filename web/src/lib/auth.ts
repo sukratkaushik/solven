@@ -1,8 +1,26 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 
 export const SESSION_COOKIE_NAME = 'solven_session';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
+export function getPublicOrigin(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '');
+  }
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+  const host = request.headers.get('host');
+  if (host && !host.includes('0.0.0.0')) {
+    const proto = host.startsWith('localhost') ? 'http' : 'https';
+    return `${proto}://${host}`;
+  }
+  return new URL(request.url).origin;
+}
 
 export interface SessionUser {
   id: string;

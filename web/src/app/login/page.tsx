@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,6 +20,23 @@ export default function LoginPage() {
   const isDe = language === 'de';
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const errParam = new URLSearchParams(window.location.search).get('error');
+      if (errParam === 'google_not_configured') {
+        setError(
+          isDe
+            ? 'Google Sign-In ist noch nicht konfiguriert (GOOGLE_CLIENT_ID fehlt).'
+            : 'Google Sign-In is not configured yet (missing GOOGLE_CLIENT_ID).'
+        );
+      } else if (errParam) {
+        setError(
+          isDe
+            ? 'Google-Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.'
+            : 'Google sign-in failed. Please try again.'
+        );
+      }
+    }
+
     fetch('/api/auth/me')
       .then((res) => (res.ok ? res.json() : { user: null }))
       .then((data) => {
@@ -27,7 +45,7 @@ export default function LoginPage() {
         }
       })
       .catch(() => {});
-  }, [router, isRecovery]);
+  }, [router, isRecovery, isDe]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,8 +178,19 @@ export default function LoginPage() {
                 </button>
               </form>
             ) : (
-              /* Standard Login Form */
-              <form className="space-y-4" onSubmit={handleLogin}>
+              <>
+                <GoogleSignInButton mode="signin" />
+
+                <div className="my-5 flex items-center">
+                  <div className="flex-1 border-t border-[#E8EAE6]" />
+                  <span className="px-3 text-[11px] font-bold uppercase tracking-wider text-[#8EA197]">
+                    {isDe ? 'oder mit E-Mail' : 'or with email'}
+                  </span>
+                  <div className="flex-1 border-t border-[#E8EAE6]" />
+                </div>
+
+                {/* Standard Login Form */}
+                <form className="space-y-4" onSubmit={handleLogin}>
                 <div>
                   <label className="block text-xs font-bold text-[#14231E] uppercase tracking-wider mb-1.5">
                     {isDe ? 'Geschäftliche E-Mail' : 'Business Email'}
@@ -249,6 +278,7 @@ export default function LoginPage() {
                   </button>
                 </div>
               </form>
+              </>
             )}
           </div>
 
