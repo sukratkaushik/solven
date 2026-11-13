@@ -54,7 +54,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --cpu 1 \
   --min-instances 0 \
   --max-instances 10 \
-  --set-env-vars "NODE_ENV=production,REGION=europe-west3"
+  --update-env-vars "NODE_ENV=production,REGION=europe-west3"
 
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)")
 

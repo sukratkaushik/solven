@@ -14,13 +14,13 @@
 | **2. Database & Frankfurt Data Residency** | 3 | 1 | 0 | 2 | 🟡 33% Complete (Migration ready for Cloud SQL) |
 | **3. Enterprise Authentication & Users** | 3 | 3 | 0 | 0 | 🟢 100% Completed |
 | **4. Stripe B2B Subscription Engine** | 4 | 3 | 0 | 1 | 🟢 75% Complete (Waiting for Stripe Live Keys) |
-| **5. Automated 07:00 AM Court Sentinel** | 3 | 2 | 0 | 1 | 🟢 66% Complete (Worker & Email Engine ready) |
+| **5. Automated 07:00 AM Court Sentinel** | 3 | 3 | 0 | 0 | 🟢 100% Completed (07:00 CET Job Active) |
 | **6. Legal, Security & DSGVO Hardening** | 3 | 3 | 0 | 0 | 🟢 100% Completed |
 | **7. Pan-European (EU) Data Architecture** | 6 | 6 | 0 | 0 | 🟢 100% Completed |
 | **8. Data Integrity & Governance Audit** | 4 | 4 | 0 | 0 | 🟢 100% Completed |
 | **9. Repository & Open Architecture Sync** | 2 | 2 | 0 | 0 | 🟢 100% Completed |
 | **10. Production Launch & Verification** | 3 | 1 | 0 | 2 | 🟢 Cloud Run Deployed |
-| **TOTAL** | **35** | **29** | **0** | **6** | **83% Completed** |
+| **TOTAL** | **35** | **30** | **0** | **5** | **86% Completed** |
 
 ---
 
@@ -133,7 +133,7 @@ flowchart TD
 | ID | Task Description | Owner | Est. Time | Status | Artifact / File |
 | :---: | :--- | :---: | :---: | :---: | :--- |
 | **T5.1** | **Insolvency Court Scraper & Deduplication Engine**: Batch processor grouping monitored entities by register court and HRB to eliminate duplicate queries. | **AI** | 90 mins | [✅] Completed | `src/lib/insolvency-sentinel.ts` |
-| **T5.2** | **GCP Cloud Scheduler Cron (07:00 AM CET)**: Cron triggering `/api/cron/sentinel` with secret bearer token authentication. | **AI / User** | 30 mins | [ ] User Action | Cloud Scheduler |
+| **T5.2** | **GCP Cloud Scheduler Cron (07:00 AM CET)**: Cron `insolvenz-sentinel-daily` triggering `/api/cron/sentinel` with `CRON_SECRET` bearer token in `europe-west3`. | **AI / User** | 30 mins | [✅] Completed | Cloud Scheduler (`insolvenz-sentinel-daily`) |
 | **T5.3** | **Instant Email Alert Dispatcher**: Branded HTML alert notification sent via Resend with recommended legal/financial action checklist. | **AI** | 45 mins | [✅] Completed | `src/app/api/cron/sentinel/route.ts`, `src/lib/email.ts` |
 
 ---
