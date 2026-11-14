@@ -105,88 +105,6 @@ interface RemoteOrg {
   company_id?: string;
 }
 
-function generateDynamicCompany(query: string, countryCode: string): EUCompanySeed {
-  const cleanQ = query.trim();
-  const hash = Math.abs(cleanQ.split('').reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) | 0, 0));
-  const num = (hash % 899999) + 100000;
-
-  switch (countryCode) {
-    case 'AT':
-      return {
-        name: cleanQ,
-        city: 'Wien',
-        legal_form: 'GmbH',
-        reg_number: `FN ${num} ${['m', 'v', 'z', 't', 'b'][num % 5]}`,
-        court: 'Handelsgericht Wien',
-        vat_id: `ATU${num + 10000000}`,
-      };
-    case 'CH':
-      return {
-        name: cleanQ,
-        city: 'Zürich',
-        legal_form: 'AG',
-        reg_number: `CHE-${(num % 899) + 100}.${(num % 899) + 100}.${(num % 899) + 100}`,
-        court: 'Handelsregisteramt Zürich',
-        vat_id: `CHE-${num} MWST`,
-      };
-    case 'NL':
-      return {
-        name: cleanQ,
-        city: 'Amsterdam',
-        legal_form: 'B.V.',
-        reg_number: `KVK ${num}12`,
-        court: 'Kamer van Koophandel Amsterdam',
-        vat_id: `NL${num}B01`,
-      };
-    case 'FR':
-      return {
-        name: cleanQ,
-        city: 'Paris',
-        legal_form: 'SAS',
-        reg_number: `RCS Paris ${num} 345`,
-        court: 'Tribunal de Commerce de Paris',
-        vat_id: `FR${(num % 89) + 10}${num}`,
-      };
-    case 'IT':
-      return {
-        name: cleanQ,
-        city: 'Milano',
-        legal_form: 'S.r.l.',
-        reg_number: `REA MI-${num}`,
-        court: 'Camera di Commercio di Milano',
-        vat_id: `IT${num}0158`,
-      };
-    case 'ES':
-      return {
-        name: cleanQ,
-        city: 'Madrid',
-        legal_form: 'S.L.',
-        reg_number: `Tomo ${(num % 900) + 100}, Folio 15, Hoja M-${num}`,
-        court: 'Registro Mercantil de Madrid',
-        vat_id: `ESB${num}89`,
-      };
-    case 'PL':
-      return {
-        name: cleanQ,
-        city: 'Warszawa',
-        legal_form: 'Sp. z o.o.',
-        reg_number: `KRS 0000${num}`,
-        court: 'Sąd Rejonowy dla m.st. Warszawy',
-        vat_id: `PL${num}123`,
-      };
-    case 'DE':
-    default:
-      return {
-        name: cleanQ,
-        city: 'Berlin',
-        legal_form: 'GmbH',
-        reg_number: `HRB ${num} B`,
-        court: 'Amtsgericht Charlottenburg (Berlin)',
-        vat_id: `DE${num}456`,
-      };
-  }
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
@@ -202,6 +120,9 @@ export async function GET(request: Request) {
 
   // 1. Attempt live query if DE and API key configured
   const apiKey = process.env.HANDELSREGISTER_API_KEY;
+  let apiStatus: 'live' | 'credits_exhausted' | 'directory_only' | 'error' = 'directory_only';
+  let warning: string | undefined;
+
   if (countryCode === 'DE' && apiKey && !apiKey.startsWith('demo_')) {
     try {
       const res = await fetch(`https://handelsregister.ai/api/v1/search-organizations?q=${encodeURIComponent(query)}&api_key=${apiKey}`, {
@@ -214,23 +135,35 @@ export async function GET(request: Request) {
         const results = Array.isArray(data) ? data : data.data || data.results || data.organizations || [];
         if (results.length > 0) {
           const mapped = results.map((c: RemoteOrg) => ({
-            id: c.registration?.register_number || c.register_number || c.company_id || `HRB ${c.id || '100000'}`,
+            id: c.registration?.register_number || c.register_number || c.company_id || String(c.id || ''),
             name: c.name || c.company_name || query,
             city: c.address?.city || c.city || 'Deutschland',
-            legal_form: c.legal_form || c.type || 'GmbH',
+            legal_form: c.legal_form || c.type || '',
             country_code: 'DE',
             register_authority: c.registration?.court || 'Handelsregister (Amtsgericht)',
-            vat_number: `DE${Math.floor(100000000 + Math.random() * 899999999)}`,
           }));
-          return NextResponse.json({ data: mapped, country: countryCode });
+          return NextResponse.json({
+            data: mapped,
+            country: countryCode,
+            apiStatus: 'live',
+            source: 'handelsregister.ai (Live)',
+          });
         }
+        apiStatus = 'live';
+      } else if (res.status === 402) {
+        apiStatus = 'credits_exhausted';
+        warning = 'Live Handelsregister API credits exhausted (0 remaining). Showing verified directory entries only.';
+      } else {
+        apiStatus = 'error';
+        warning = `Live Handelsregister API returned status ${res.status}. Showing verified directory entries only.`;
       }
     } catch {
-      // Fall through to resilient directory lookup
+      apiStatus = 'error';
+      warning = 'Live Handelsregister API unreachable. Showing verified directory entries only.';
     }
   }
 
-  // 2. Query directory for selected country
+  // 2. Query verified directory for selected country (never fabricate fake companies)
   const directory = PAN_EU_DIRECTORY[countryCode] || [];
   const matches = directory.filter(
     (c) => c.name.toLowerCase().includes(qLower) || c.city.toLowerCase().includes(qLower) || c.reg_number.toLowerCase().includes(qLower)
@@ -246,24 +179,12 @@ export async function GET(request: Request) {
     vat_number: c.vat_id,
   }));
 
-  // If no exact static match found in directory, dynamically synthesize compliant company record
-  if (finalResults.length === 0) {
-    const dynamic = generateDynamicCompany(query, countryCode);
-    finalResults.push({
-      id: dynamic.reg_number,
-      name: dynamic.name,
-      city: dynamic.city,
-      legal_form: dynamic.legal_form,
-      country_code: countryCode,
-      register_authority: dynamic.court,
-      vat_number: dynamic.vat_id,
-    });
-  }
-
   return NextResponse.json({
     data: finalResults,
     country: countryCode,
     registry: country.registerName,
-    source: 'Pan-European Interconnected Registry Network',
+    apiStatus,
+    warning,
+    source: apiStatus === 'directory_only' ? 'Verified Pan-European Directory' : 'Directory Fallback',
   });
 }

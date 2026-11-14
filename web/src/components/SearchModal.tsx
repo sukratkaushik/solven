@@ -43,6 +43,7 @@ export default function SearchModal({ onClose, onAdded }: SearchModalProps) {
   const [results, setResults] = useState<Company[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [apiWarning, setApiWarning] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const { t, language } = useLanguage();
 
@@ -50,12 +51,16 @@ export default function SearchModal({ onClose, onAdded }: SearchModalProps) {
     async (q: string, countryCode: string) => {
       setIsSearching(true);
       setError(null);
+      setApiWarning(null);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&country=${encodeURIComponent(countryCode)}`);
         if (!res.ok) {
           throw new Error(t('search.error_search'));
         }
         const data = await res.json();
+        if (data?.warning) {
+          setApiWarning(data.warning);
+        }
 
         let companiesList = [];
         if (Array.isArray(data)) {
@@ -313,6 +318,11 @@ export default function SearchModal({ onClose, onAdded }: SearchModalProps) {
 
         {/* Results / List */}
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
+          {apiWarning && (
+            <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+              {apiWarning}
+            </div>
+          )}
           {isSearching ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent mb-2"></div>

@@ -24,9 +24,29 @@ interface CompanyDossierModalProps {
 
 type DossierTab = 'overview' | 'media' | 'finance' | 'legal';
 
+interface LiveAuditResponse {
+  verified: boolean;
+  apiStatus: 'live' | 'cached' | 'credits_exhausted' | 'unverified' | 'error';
+  source?: string;
+  message?: string;
+  status?: string;
+  score?: number;
+  details?: {
+    managingDirectors: string[];
+    shareCapital: string | null;
+    registerCourt: string | null;
+    registerNumber: string | null;
+    insolvencyNotices: Array<{ date?: string; court?: string; type?: string; caseNumber?: string }>;
+    publicationsCount: number;
+    lastSyncedAt: string;
+  };
+}
+
 export default function CompanyDossierModal({ company, onClose }: CompanyDossierModalProps) {
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<DossierTab>('overview');
+  const [liveAudit, setLiveAudit] = useState<LiveAuditResponse | null>(null);
+  const [isAuditing, setIsAuditing] = useState(true);
   const [liveStockQuote, setLiveStockQuote] = useState<{
     ticker?: string;
     price: string;
@@ -47,6 +67,24 @@ export default function CompanyDossierModal({ company, onClose }: CompanyDossier
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  // Fetch live / cached company audit from Cloud SQL + Handelsregister
+  useEffect(() => {
+    setIsAuditing(true);
+    const params = new URLSearchParams({
+      name: company.company_name || '',
+      reg: company.company_id || '',
+      court: company.register_authority || '',
+      country: (company.country_code || 'DE').toUpperCase(),
+    });
+    fetch(`/api/companies/audit?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: LiveAuditResponse | null) => {
+        if (data) setLiveAudit(data);
+      })
+      .catch(() => {})
+      .finally(() => setIsAuditing(false));
+  }, [company.company_name, company.company_id, company.register_authority, company.country_code]);
 
   // Resolve country config
   const country: CountryConfig = useMemo(() => {
@@ -378,13 +416,46 @@ export default function CompanyDossierModal({ company, onClose }: CompanyDossier
         : `Full certified list of officers & shareholders on file with the official court register (${court}).`;
     }
 
-    const directorSummary = boardMembers[0];
+    const isKnownBenchmark =
+      upperName.includes('SAP') ||
+      upperName.includes('SIEMENS') ||
+      upperName.includes('VOLKSWAGEN') ||
+      upperName.includes('VW') ||
+      upperName.includes('ALLIANZ') ||
+      upperName.includes('RED BULL') ||
+      upperName.includes('NESTLÉ') ||
+      upperName.includes('NESTLE') ||
+      upperName.includes('ASML') ||
+      upperName.includes('TOTAL') ||
+      upperName.includes('TOTALENERGIES');
+
+    const hasLiveAudit = Boolean(liveAudit?.verified && liveAudit.details);
+    const isVerifiedData = hasLiveAudit || isKnownBenchmark;
+
+    const effectiveScore = hasLiveAudit && typeof liveAudit?.score === 'number' ? liveAudit.score : score;
+    const effectiveCourt = (hasLiveAudit && liveAudit?.details?.registerCourt) || court;
+    const effectiveCapital =
+      (hasLiveAudit && liveAudit?.details?.shareCapital) ||
+      (isKnownBenchmark ? capital : language === 'de' ? 'Noch nicht aus Register abgerufen' : 'Not yet fetched from registry');
+    const effectiveBoardMembers =
+      hasLiveAudit && liveAudit?.details?.managingDirectors?.length
+        ? liveAudit.details.managingDirectors
+        : isKnownBenchmark
+          ? boardMembers
+          : [
+              language === 'de'
+                ? 'Live-Registerabruf ausstehend (API-Guthaben erforderlich)'
+                : 'Live registry lookup pending (API credits required)',
+            ];
+
+    const directorSummary = effectiveBoardMembers[0];
 
     return {
-      score,
+      score: effectiveScore,
+      isVerifiedData,
       legalForm,
       isPublicStock,
-      capital,
+      capital: effectiveCapital,
       stockTicker,
       sharePrice,
       trend30d,
@@ -395,16 +466,16 @@ export default function CompanyDossierModal({ company, onClose }: CompanyDossier
       sentimentScore,
       domainName,
       boardLabel,
-      boardMembers,
+      boardMembers: effectiveBoardMembers,
       secondaryLabel,
       secondaryMembers,
       governanceNote,
       directorSummary,
-      court,
+      court: effectiveCourt,
       regNo,
       city,
     };
-  }, [company, country, language]);
+  }, [company, country, language, liveAudit]);
 
   // Fetch live stock quote for public corporations
   useEffect(() => {
@@ -547,6 +618,29 @@ export default function CompanyDossierModal({ company, onClose }: CompanyDossier
               </h3>
             </div>
 
+            {!isAuditing && !details.isVerifiedData && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 flex items-start gap-2.5">
+                <span className="font-bold text-amber-600 mt-0.5">⚠</span>
+                <div>
+                  <p className="font-bold">
+                    {language === 'de'
+                      ? 'Live-Registerprüfung ausstehend'
+                      : 'Pending Live Registry Verification'}
+                  </p>
+                  <p className="text-amber-800 mt-0.5">
+                    {liveAudit?.apiStatus === 'credits_exhausted'
+                      ? (language === 'de'
+                          ? 'Ihr Handelsregister-API-Guthaben ist aufgebraucht (0 Credits). Laden Sie Credits nach, um echte Geschäftsführer, Stammkapital und Insolvenzregister-Daten abzurufen.'
+                          : 'Your Handelsregister API credits are exhausted (0 remaining). Top up credits to fetch live managing directors, share capital, and insolvency filings.')
+                      : (liveAudit?.message ||
+                          (language === 'de'
+                            ? 'Für dieses Unternehmen liegt noch kein verifizierter Registerauszug vor.'
+                            : 'No live verified registry extract is available for this company yet.'))}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Solvency Risk Score */}
             <div className="bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl p-5 border border-slate-200 print:bg-white print:border-black">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -556,27 +650,39 @@ export default function CompanyDossierModal({ company, onClose }: CompanyDossier
                   </span>
                   <div className="flex items-baseline space-x-3 mt-1">
                     <span className="text-3xl sm:text-4xl font-extrabold text-slate-900">
-                      {details.score}
+                      {isAuditing ? '...' : details.isVerifiedData ? details.score : '--'}
                       <span className="text-xl text-slate-400 font-normal"> / 100</span>
                     </span>
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      <svg className="w-3.5 h-3.5 mr-1 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      {t('dossier.score_rating')}
-                    </span>
+                    {details.isVerifiedData ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        <svg className="w-3.5 h-3.5 mr-1 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        {t('dossier.score_rating')}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                        {isAuditing
+                          ? (language === 'de' ? 'Prüfe Register...' : 'Checking Registry...')
+                          : (language === 'de' ? 'Nicht verifiziert' : 'Unverified')}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="w-full sm:w-64">
                   <div className="flex justify-between text-xs text-slate-500 font-medium mb-1.5">
-                    <span>Insolvenzrisiko</span>
-                    <span className="font-semibold text-emerald-700">{details.score}% Sicher</span>
+                    <span>{language === 'de' ? 'Insolvenzrisiko' : 'Solvency Index'}</span>
+                    <span className={`font-semibold ${details.isVerifiedData ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {details.isVerifiedData
+                        ? `${details.score}% ${language === 'de' ? 'Sicher' : 'Clear'}`
+                        : (language === 'de' ? 'Ausstehend' : 'Pending')}
+                    </span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                     <div
-                      className="bg-emerald-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${details.score}%` }}
+                      className={`${details.isVerifiedData ? 'bg-emerald-500' : 'bg-amber-400'} h-3 rounded-full transition-all duration-500`}
+                      style={{ width: `${details.isVerifiedData ? details.score : 0}%` }}
                     ></div>
                   </div>
                 </div>
